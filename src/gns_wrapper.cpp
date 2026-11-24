@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
@@ -136,15 +137,19 @@ GNS_EXPORT uint32_t GNS_CALL GNS_Recieve(uint8_t* transportBuffer, int32_t* resu
 }
 
 GNS_EXPORT int32_t GNS_CALL GNS_ConnectionEvents(uint32_t* eventBuffer, int32_t maxEventSize) {
-    (void)maxEventSize;
+    if (g_pInterface == nullptr || eventBuffer == nullptr || maxEventSize <= 0) {
+        return 0;
+    }
     g_pInterface->RunCallbacks();
 
-    int32_t count = 0;
-    for (uint32_t value : g_connectionEvents) {
-        eventBuffer[count++] = value;
+    const size_t available = g_connectionEvents.size() / 2;
+    const size_t pairs = available < static_cast<size_t>(maxEventSize) ? available : static_cast<size_t>(maxEventSize);
+    const size_t values = pairs * 2;
+    for (size_t i = 0; i < values; ++i) {
+        eventBuffer[i] = g_connectionEvents[i];
     }
-    g_connectionEvents.clear();
-    return count / 2;
+    g_connectionEvents.erase(g_connectionEvents.begin(), g_connectionEvents.begin() + static_cast<std::ptrdiff_t>(values));
+    return static_cast<int32_t>(pairs);
 }
 
 GNS_EXPORT uint32_t GNS_CALL GNS_ListenIPPort(const char* addrStr) {
