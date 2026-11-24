@@ -1,0 +1,9 @@
+build*/
+dist/
+out/
+vcpkg_installed/
+vcpkg_cache/
+.vs/
+*.user
+*.suo
+*.pdb

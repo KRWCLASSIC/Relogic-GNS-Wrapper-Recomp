@@ -1,0 +1,14 @@
+LIBRARY GNS_Wrapper
+EXPORTS
+    GNS_Startup
+    GNS_Shutdown
+    GNS_Recieve
+    GNS_ConnectionEvents
+    GNS_Listen
+    GNS_ListenIPPort
+    GNS_CloseListen
+    GNS_Connect
+    GNS_ConnectString
+    GNS_CloseSocket
+    GNS_SocketSend
+    GNS_GetSocketAddress

@@ -1,0 +1,8 @@
+{
+  "name": "relogic-gns-wrapper-recomp",
+  "version-string": "1.0.0",
+  "description": "Clean-room x86 & x64 rebuild of Terraria 1.4.6.0's GNS_Wrapper.dll against Valve GameNetworkingSockets",
+  "dependencies": [
+    "gamenetworkingsockets"
+  ]
+}
