@@ -43,8 +43,12 @@ jobs:
           VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
         run: |
           New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/vcpkg_cache" | Out-Null
-          cmake -B build-${{ matrix.arch_label }} -G "Visual Studio 17 2022" -A ${{ matrix.cmake_arch }} `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+          $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
+          if (-not $vcpkgRoot) { $vcpkgRoot = $env:VCPKG_ROOT }
+          if (-not $vcpkgRoot) { $vcpkgRoot = "C:/vcpkg" }
+          Write-Host "Using vcpkg at: $vcpkgRoot"
+          cmake -B build-${{ matrix.arch_label }} -A ${{ matrix.cmake_arch }} `
+            -DCMAKE_TOOLCHAIN_FILE="$vcpkgRoot/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }}
 
       - name: Build Release (${{ matrix.arch_label }})
