@@ -6,15 +6,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(GameNetworkingSockets CONFIG REQUIRED)
 
-add_library(GNS_Wrapper SHARED
+set(GNS_WRAPPER_SOURCES
     src/gns_wrapper.cpp
-    src/gns_wrapper.def
 )
+if(WIN32)
+    list(APPEND GNS_WRAPPER_SOURCES src/gns_wrapper.def)
+endif()
 
-set_target_properties(GNS_Wrapper PROPERTIES
-    PREFIX ""
-    OUTPUT_NAME "GNS_Wrapper"
-)
+add_library(GNS_Wrapper SHARED ${GNS_WRAPPER_SOURCES})
+
+if(WIN32)
+    set_target_properties(GNS_Wrapper PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME "GNS_Wrapper"
+    )
+else()
+    set_target_properties(GNS_Wrapper PROPERTIES
+        PREFIX "lib"
+        OUTPUT_NAME "GNS_Wrapper"
+        BUILD_RPATH "$ORIGIN"
+        INSTALL_RPATH "$ORIGIN"
+    )
+endif()
 
 # Link against whichever imported target GameNetworkingSockets exports (shared preferred)
 if(TARGET GameNetworkingSockets::GameNetworkingSockets)
@@ -30,4 +43,6 @@ endif()
 if(MSVC)
     target_compile_options(GNS_Wrapper PRIVATE /W4 /EHsc)
     target_compile_definitions(GNS_Wrapper PRIVATE _CRT_SECURE_NO_WARNINGS)
+else()
+    target_compile_options(GNS_Wrapper PRIVATE -Wall -Wextra -fvisibility=hidden)
 endif()

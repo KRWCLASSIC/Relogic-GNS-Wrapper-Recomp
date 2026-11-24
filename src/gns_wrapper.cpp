@@ -6,6 +6,14 @@
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
 
+#ifdef _WIN32
+#define GNS_EXPORT
+#define GNS_CALL __cdecl
+#else
+#define GNS_EXPORT __attribute__((visibility("default")))
+#define GNS_CALL
+#endif
+
 namespace {
 
 ISteamNetworkingSockets* g_pInterface = nullptr;
@@ -76,7 +84,7 @@ void OnClientConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* 
 
 extern "C" {
 
-void __cdecl GNS_Startup() {
+GNS_EXPORT void GNS_CALL GNS_Startup() {
     SteamDatagramErrMsg errMsg;
     if (!GameNetworkingSockets_Init(nullptr, errMsg)) {
         std::printf("GameNetworkingSockets_Init failed. %s\n", errMsg);
@@ -94,7 +102,7 @@ void __cdecl GNS_Startup() {
     }
 }
 
-void __cdecl GNS_Shutdown() {
+GNS_EXPORT void GNS_CALL GNS_Shutdown() {
     if (g_hPollGroup != k_HSteamNetPollGroup_Invalid) {
         g_pInterface->DestroyPollGroup(g_hPollGroup);
         g_hPollGroup = k_HSteamNetPollGroup_Invalid;
@@ -106,7 +114,7 @@ void __cdecl GNS_Shutdown() {
     }
 }
 
-uint32_t __cdecl GNS_Recieve(uint8_t* transportBuffer, int32_t* resultSize, int32_t maxTransportSize) {
+GNS_EXPORT uint32_t GNS_CALL GNS_Recieve(uint8_t* transportBuffer, int32_t* resultSize, int32_t maxTransportSize) {
     *resultSize = 0;
     if (g_pInterface == nullptr) {
         return 0u;
@@ -118,8 +126,8 @@ uint32_t __cdecl GNS_Recieve(uint8_t* transportBuffer, int32_t* resultSize, int3
     }
 
     const uint32_t conn = static_cast<uint32_t>(pMsg->m_conn);
-    if (conn != 0u) {
-        memcpy_s(transportBuffer, static_cast<size_t>(maxTransportSize), pMsg->m_pData, static_cast<size_t>(pMsg->m_cbSize));
+    if (conn != 0u && pMsg->m_cbSize > 0 && pMsg->m_cbSize <= maxTransportSize) {
+        std::memcpy(transportBuffer, pMsg->m_pData, static_cast<size_t>(pMsg->m_cbSize));
         *resultSize = pMsg->m_cbSize;
     }
 
@@ -127,7 +135,7 @@ uint32_t __cdecl GNS_Recieve(uint8_t* transportBuffer, int32_t* resultSize, int3
     return conn;
 }
 
-int32_t __cdecl GNS_ConnectionEvents(uint32_t* eventBuffer, int32_t maxEventSize) {
+GNS_EXPORT int32_t GNS_CALL GNS_ConnectionEvents(uint32_t* eventBuffer, int32_t maxEventSize) {
     (void)maxEventSize;
     g_pInterface->RunCallbacks();
 
@@ -139,7 +147,7 @@ int32_t __cdecl GNS_ConnectionEvents(uint32_t* eventBuffer, int32_t maxEventSize
     return count / 2;
 }
 
-uint32_t __cdecl GNS_ListenIPPort(const char* addrStr) {
+GNS_EXPORT uint32_t GNS_CALL GNS_ListenIPPort(const char* addrStr) {
     SteamNetworkingIPAddr addr;
     addr.ParseString(addrStr);
 
@@ -150,7 +158,7 @@ uint32_t __cdecl GNS_ListenIPPort(const char* addrStr) {
     return static_cast<uint32_t>(g_pInterface->CreateListenSocketIP(addr, 1, &opt));
 }
 
-uint32_t __cdecl GNS_Listen(int32_t port) {
+GNS_EXPORT uint32_t GNS_CALL GNS_Listen(int32_t port) {
     SteamNetworkingIPAddr addr;
     addr.Clear();
     addr.m_port = static_cast<uint16_t>(port);
@@ -162,11 +170,11 @@ uint32_t __cdecl GNS_Listen(int32_t port) {
     return static_cast<uint32_t>(g_pInterface->CreateListenSocketIP(addr, 1, &opt));
 }
 
-void __cdecl GNS_CloseListen(uint32_t socket) {
+GNS_EXPORT void GNS_CALL GNS_CloseListen(uint32_t socket) {
     g_pInterface->CloseListenSocket(static_cast<HSteamListenSocket>(socket));
 }
 
-uint32_t __cdecl GNS_ConnectString(const char* addrStr) {
+GNS_EXPORT uint32_t GNS_CALL GNS_ConnectString(const char* addrStr) {
     SteamNetworkingIPAddr addr;
     addr.ParseString(addrStr);
 
@@ -177,7 +185,7 @@ uint32_t __cdecl GNS_ConnectString(const char* addrStr) {
     return static_cast<uint32_t>(g_pInterface->ConnectByIPAddress(addr, 1, &opt));
 }
 
-uint32_t __cdecl GNS_Connect(const SteamNetworkingIPAddr* addr) {
+GNS_EXPORT uint32_t GNS_CALL GNS_Connect(const SteamNetworkingIPAddr* addr) {
     SteamNetworkingConfigValue_t opt;
     opt.SetPtr(k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged,
                reinterpret_cast<void*>(&OnClientConnectionStatusChanged));
@@ -185,11 +193,11 @@ uint32_t __cdecl GNS_Connect(const SteamNetworkingIPAddr* addr) {
     return static_cast<uint32_t>(g_pInterface->ConnectByIPAddress(*addr, 1, &opt));
 }
 
-void __cdecl GNS_CloseSocket(uint32_t socket) {
+GNS_EXPORT void GNS_CALL GNS_CloseSocket(uint32_t socket) {
     g_pInterface->CloseConnection(static_cast<HSteamNetConnection>(socket), 0, "Closed", true);
 }
 
-void __cdecl GNS_SocketSend(uint32_t socket, const uint8_t* sendBuffer, int32_t sendAmount) {
+GNS_EXPORT void GNS_CALL GNS_SocketSend(uint32_t socket, const uint8_t* sendBuffer, int32_t sendAmount) {
     g_pInterface->SendMessageToConnection(
         static_cast<HSteamNetConnection>(socket),
         sendBuffer,
@@ -198,7 +206,7 @@ void __cdecl GNS_SocketSend(uint32_t socket, const uint8_t* sendBuffer, int32_t 
         nullptr);
 }
 
-bool __cdecl GNS_GetSocketAddress(uint32_t socket, char* addressBuffer, int32_t addressBufferSize) {
+GNS_EXPORT bool GNS_CALL GNS_GetSocketAddress(uint32_t socket, char* addressBuffer, int32_t addressBufferSize) {
     SteamNetConnectionInfo_t info;
     if (!g_pInterface->GetConnectionInfo(static_cast<HSteamNetConnection>(socket), &info)) {
         return false;

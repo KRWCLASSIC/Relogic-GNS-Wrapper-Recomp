@@ -74,9 +74,61 @@ jobs:
           name: Relogic-GNS-Wrapper-win-${{ matrix.arch_label }}
           path: dist/${{ matrix.arch_label }}/*
 
+  build-linux:
+    name: Build Linux x64 (OpenSSL 3)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config zip unzip tar curl
+
+      - name: Cache vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg_cache
+          key: vcpkg-Linux-x64-linux-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-Linux-x64-linux-
+
+      - name: Configure CMake (Linux x64)
+        env:
+          VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
+        run: |
+          mkdir -p "${{ github.workspace }}/vcpkg_cache"
+          VCPKG_ROOT_DIR="${VCPKG_INSTALLATION_ROOT:-${VCPKG_ROOT:-/usr/local/share/vcpkg}}"
+          echo "Using vcpkg at: $VCPKG_ROOT_DIR"
+          cmake -B build-linux-x64 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT_DIR/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
+
+      - name: Build Release (Linux x64)
+        run: |
+          cmake --build build-linux-x64 --parallel
+
+      - name: Package shared library (Linux x64)
+        run: |
+          mkdir -p dist/linux-x64
+          cp build-linux-x64/libGNS_Wrapper.so dist/linux-x64/
+          if [ -d build-linux-x64/vcpkg_installed/x64-linux/lib ]; then
+            find build-linux-x64/vcpkg_installed/x64-linux/lib -maxdepth 1 -name '*.so*' -exec cp -P {} dist/linux-x64/ \;
+          fi
+          ls -lh dist/linux-x64
+          ldd dist/linux-x64/libGNS_Wrapper.so
+
+      - name: Upload Artifact (Linux x64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Relogic-GNS-Wrapper-linux-x64
+          path: dist/linux-x64/*
+
   release:
     name: Publish GitHub Release
-    needs: build
+    needs: [build, build-linux]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -92,10 +144,17 @@ jobs:
           name: Relogic-GNS-Wrapper-win-x86
           path: release/win-x86
 
-      - name: Zip release archives
+      - name: Download Linux x64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Relogic-GNS-Wrapper-linux-x64
+          path: release/linux-x64
+
+      - name: Package release archives
         run: |
           (cd release/win-x64 && zip -r ../../Relogic-GNS-Wrapper-win-x64.zip .)
           (cd release/win-x86 && zip -r ../../Relogic-GNS-Wrapper-win-x86.zip .)
+          (cd release/linux-x64 && tar -czf ../../Relogic-GNS-Wrapper-linux-x64.tar.gz .)
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -103,3 +162,4 @@ jobs:
           files: |
             Relogic-GNS-Wrapper-win-x64.zip
             Relogic-GNS-Wrapper-win-x86.zip
+            Relogic-GNS-Wrapper-linux-x64.tar.gz
